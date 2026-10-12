@@ -1,383 +1,425 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Doguso - Sudoku Game</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Doguso - Sudoku Game</title>
+  <style>
+    :root {
+      --bg: #0b1020;
+      --panel: #121b2f;
+      --panel-2: #1b2943;
+      --primary: #7c9cff;
+      --primary-strong: #5d7dff;
+      --secondary: #8ef7d3;
+      --text: #edf3ff;
+      --muted: #a7b9d9;
+      --danger: #ff6b6b;
+      --warning: #fbbf24;
+      --success: #34d399;
+      --shadow: rgba(0, 0, 0, 0.35);
+    }
 
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 20px;
-        }
+    * { box-sizing: border-box; }
 
-        .container {
-            background: white;
-            border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-            padding: 30px;
-            max-width: 600px;
-            width: 100%;
-        }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      background: radial-gradient(circle at top, #16213d 0%, #0b1020 45%, #090d17 100%);
+      color: var(--text);
+    }
 
-        .header {
-            text-align: center;
-            margin-bottom: 30px;
-        }
+    .app {
+      width: min(760px, 100%);
+      background: rgba(18, 27, 47, 0.96);
+      border: 1px solid rgba(124, 156, 255, 0.28);
+      border-radius: 26px;
+      box-shadow: 0 30px 70px var(--shadow);
+      padding: 24px 22px 18px;
+    }
 
-        .header h1 {
-            color: #667eea;
-            font-size: 2.5em;
-            margin-bottom: 10px;
-            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
-        }
+    .header {
+      text-align: center;
+      margin-bottom: 18px;
+    }
 
-        .header p {
-            color: #666;
-            font-size: 1em;
-        }
+    .logo {
+      font-size: clamp(2rem, 4vw, 3rem);
+      font-weight: 900;
+      letter-spacing: 2px;
+      margin: 0;
+      background: linear-gradient(90deg, var(--primary), var(--secondary));
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
 
-        .stats {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 15px;
-            margin-bottom: 25px;
-        }
+    .subtitle {
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 0.95rem;
+      letter-spacing: 0.4px;
+    }
 
-        .stat-box {
-            background: #f0f4ff;
-            padding: 15px;
-            border-radius: 10px;
-            text-align: center;
-            border-left: 4px solid #667eea;
-        }
+    .difficulty-bar {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin: 20px 0 18px;
+    }
 
-        .stat-box label {
-            display: block;
-            color: #999;
-            font-size: 0.9em;
-            margin-bottom: 5px;
-        }
+    .difficulty-btn {
+      border: 1px solid rgba(124, 156, 255, 0.35);
+      background: transparent;
+      color: var(--muted);
+      border-radius: 999px;
+      padding: 9px 16px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: 0.2s ease;
+    }
 
-        .stat-box span {
-            display: block;
-            color: #667eea;
-            font-size: 1.5em;
-            font-weight: bold;
-        }
+    .difficulty-btn:hover {
+      transform: translateY(-1px);
+      border-color: var(--primary);
+      color: var(--text);
+    }
 
-        .sudoku-board {
-            background: #333;
-            padding: 10px;
-            border-radius: 10px;
-            margin-bottom: 25px;
-            display: inline-block;
-            width: 100%;
-        }
+    .difficulty-btn.active {
+      background: linear-gradient(90deg, var(--primary), var(--primary-strong));
+      color: white;
+      box-shadow: 0 12px 24px rgba(124, 156, 255, 0.3);
+    }
 
-        .sudoku-grid {
-            display: grid;
-            grid-template-columns: repeat(9, 1fr);
-            gap: 0;
-            background: #333;
-            border: 3px solid #333;
-        }
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(120px, 1fr));
+      gap: 12px;
+      margin-bottom: 18px;
+    }
 
-        .sudoku-cell {
-            width: 100%;
-            aspect-ratio: 1;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            background: white;
-            border: 1px solid #ccc;
-            font-size: 1.2em;
-            font-weight: bold;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
+    .stat {
+      background: rgba(124, 156, 255, 0.08);
+      border: 1px solid rgba(124, 156, 255, 0.15);
+      border-radius: 14px;
+      padding: 12px 10px;
+      text-align: center;
+    }
 
-        .sudoku-cell:hover {
-            background: #f9f9f9;
-        }
+    .label {
+      display: block;
+      color: var(--muted);
+      font-size: 0.8rem;
+      margin-bottom: 6px;
+    }
 
-        .sudoku-cell.selected {
-            background: #667eea;
-            color: white;
-        }
+    .value {
+      display: block;
+      color: var(--text);
+      font-weight: 800;
+      font-size: clamp(1.1rem, 2.4vw, 1.55rem);
+      letter-spacing: 0.5px;
+    }
 
-        .sudoku-cell.given {
-            background: #f0f0f0;
-            color: #000;
-            font-weight: 900;
-        }
+    .board-wrap {
+      background: #0d1428;
+      border: 2px solid rgba(124, 156, 255, 0.2);
+      border-radius: 18px;
+      padding: 10px;
+      margin-bottom: 18px;
+    }
 
-        .sudoku-cell.error {
-            background: #ffebee;
-            color: #c62828;
-        }
+    .sudoku-grid {
+      display: grid;
+      grid-template-columns: repeat(9, minmax(0, 1fr));
+      border: 3px solid rgba(124, 156, 255, 0.4);
+      background: rgba(124, 156, 255, 0.18);
+      overflow: hidden;
+      aspect-ratio: 1;
+    }
 
-        .sudoku-cell.related {
-            background: #e8eaf6;
-        }
+    .cell {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(18, 27, 47, 0.85);
+      border: 1px solid rgba(124, 156, 255, 0.12);
+      font-size: clamp(1.15rem, 2vw, 1.7rem);
+      font-weight: 800;
+      color: var(--text);
+      user-select: none;
+      cursor: pointer;
+      transition: all 0.12s ease;
+      aspect-ratio: 1;
+    }
 
-        /* Thicker borders for 3x3 boxes */
-        .sudoku-cell:nth-child(3n) {
-            border-right: 3px solid #333;
-        }
+    .cell:hover { background: rgba(124, 156, 255, 0.08); }
 
-        .sudoku-cell:nth-child(n + 25):nth-child(-n + 27),
-        .sudoku-cell:nth-child(n + 52):nth-child(-n + 54) {
-            border-bottom: 3px solid #333;
-        }
+    .cell.given {
+      background: rgba(124, 156, 255, 0.2);
+      color: #dfe8ff;
+      font-weight: 900;
+      cursor: default;
+    }
 
-        .sudoku-cell:nth-child(27n + 19),
-        .sudoku-cell:nth-child(27n + 20),
-        .sudoku-cell:nth-child(27n + 21) {
-            border-bottom: 3px solid #333;
-        }
+    .cell.selected {
+      background: rgba(124, 156, 255, 0.4);
+      box-shadow: inset 0 0 0 2px rgba(255,255,255,0.25);
+    }
 
-        .sudoku-cell:nth-child(n + 19):nth-child(-n + 21),
-        .sudoku-cell:nth-child(n + 46):nth-child(-n + 48) {
-            border-bottom: 3px solid #333;
-        }
+    .cell.related {
+      background: rgba(124, 156, 255, 0.12);
+    }
 
-        .controls {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 10px;
-            margin-bottom: 20px;
-        }
+    .cell.error {
+      background: rgba(255, 107, 107, 0.15);
+      color: #ffd0d0;
+      box-shadow: inset 0 0 0 2px rgba(255, 107, 107, 0.45);
+    }
 
-        .btn {
-            padding: 12px 20px;
-            border: none;
-            border-radius: 8px;
-            font-size: 1em;
-            font-weight: bold;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
+    .cell.correct {
+      background: rgba(52, 211, 153, 0.12);
+      color: #baf7dd;
+    }
 
-        .btn-primary {
-            background: #667eea;
-            color: white;
-            grid-column: span 1;
-        }
+    .cell:nth-child(3n) { border-right: 2px solid rgba(124, 156, 255, 0.4); }
+    .cell:nth-child(9n) { border-right: none; }
+    .cell:nth-child(n + 19):nth-child(-n + 27),
+    .cell:nth-child(n + 46):nth-child(-n + 54),
+    .cell:nth-child(n + 73):nth-child(-n + 81) {
+      border-bottom: 2px solid rgba(124, 156, 255, 0.4);
+    }
 
-        .btn-primary:hover {
-            background: #5568d3;
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
-        }
+    .number-pad {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 10px;
+      margin-bottom: 18px;
+    }
 
-        .btn-secondary {
-            background: #f0f0f0;
-            color: #333;
-            grid-column: span 1;
-        }
+    .num-btn, .action-btn {
+      border: 1px solid rgba(124, 156, 255, 0.3);
+      background: rgba(124, 156, 255, 0.08);
+      color: var(--text);
+      border-radius: 12px;
+      padding: 12px 10px;
+      font-size: 1rem;
+      font-weight: 800;
+      cursor: pointer;
+      transition: 0.2s ease;
+    }
 
-        .btn-secondary:hover {
-            background: #e0e0e0;
-        }
+    .num-btn:hover, .action-btn:hover {
+      transform: translateY(-1px);
+      background: rgba(124, 156, 255, 0.14);
+    }
 
-        .btn-danger {
-            background: #ff6b6b;
-            color: white;
-            grid-column: span 1;
-        }
+    .controls {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+    }
 
-        .btn-danger:hover {
-            background: #ee5a52;
-        }
+    .action-btn.primary {
+      background: linear-gradient(90deg, var(--primary), var(--primary-strong));
+      border: none;
+      color: white;
+    }
 
-        .number-pad {
-            display: grid;
-            grid-template-columns: repeat(5, 1fr);
-            gap: 8px;
-            margin-bottom: 20px;
-        }
+    .action-btn.danger {
+      background: rgba(255, 107, 107, 0.12);
+      border-color: rgba(255, 107, 107, 0.35);
+      color: #ffd6d6;
+    }
 
-        .num-btn {
-            padding: 12px;
-            border: 2px solid #667eea;
-            background: white;
-            color: #667eea;
-            border-radius: 8px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: all 0.2s;
-            font-size: 1.1em;
-        }
+    .action-btn.secondary {
+      background: rgba(124, 156, 255, 0.08);
+      color: var(--text);
+    }
 
-        .num-btn:hover {
-            background: #667eea;
-            color: white;
-        }
+    .leaderboard {
+      margin-top: 18px;
+      background: rgba(124, 156, 255, 0.05);
+      border: 1px solid rgba(124, 156, 255, 0.16);
+      border-radius: 16px;
+      padding: 14px 16px;
+    }
 
-        .num-btn.active {
-            background: #667eea;
-            color: white;
-        }
+    .leaderboard h3 {
+      margin: 0 0 10px;
+      font-size: 1rem;
+      color: var(--primary);
+    }
 
-        .difficulty-selector {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
-            justify-content: center;
-        }
+    .leaderboard-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
 
-        .difficulty-btn {
-            padding: 8px 16px;
-            border: 2px solid #ddd;
-            background: white;
-            border-radius: 20px;
-            cursor: pointer;
-            transition: all 0.2s;
-            font-weight: bold;
-        }
+    .leaderboard-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: var(--muted);
+      border-bottom: 1px solid rgba(124, 156, 255, 0.12);
+      padding-bottom: 6px;
+      font-size: 0.9rem;
+    }
 
-        .difficulty-btn.active {
-            background: #667eea;
-            color: white;
-            border-color: #667eea;
-        }
+    .leaderboard-item:last-child {
+      border-bottom: none;
+      padding-bottom: 0;
+    }
 
-        .modal {
-            display: none;
-            position: fixed;
-            z-index: 1000;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.5);
-            align-items: center;
-            justify-content: center;
-        }
+    .modal {
+      position: fixed;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(10, 12, 18, 0.72);
+      z-index: 10;
+      backdrop-filter: blur(5px);
+    }
 
-        .modal.show {
-            display: flex;
-        }
+    .modal.show { display: flex; }
 
-        .modal-content {
-            background: white;
-            padding: 40px;
-            border-radius: 15px;
-            text-align: center;
-            max-width: 400px;
-        }
+    .modal-box {
+      width: min(420px, calc(100vw - 30px));
+      background: rgba(18, 27, 47, 0.98);
+      border: 1px solid rgba(124, 156, 255, 0.2);
+      border-radius: 18px;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.35);
+      padding: 28px 22px 20px;
+      text-align: center;
+    }
 
-        .modal-content h2 {
-            color: #667eea;
-            margin-bottom: 15px;
-            font-size: 2em;
-        }
+    .modal-box h2 {
+      margin: 0 0 12px;
+      font-size: clamp(1.8rem, 3vw, 2.4rem);
+      background: linear-gradient(90deg, var(--primary), var(--secondary));
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
 
-        .modal-content p {
-            color: #666;
-            margin-bottom: 25px;
-            font-size: 1.1em;
-        }
+    .modal-box p {
+      margin: 0 0 18px;
+      color: var(--muted);
+      line-height: 1.6;
+    }
 
-        .modal-buttons {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 10px;
-        }
+    .modal-actions {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
 
-        .modal-buttons .btn {
-            padding: 12px;
-        }
+    .sound-toggle {
+      position: fixed;
+      right: 18px;
+      bottom: 18px;
+      width: 52px;
+      height: 52px;
+      border: none;
+      border-radius: 50%;
+      background: linear-gradient(90deg, var(--primary), var(--primary-strong));
+      color: white;
+      font-size: 1.3rem;
+      cursor: pointer;
+      box-shadow: 0 12px 26px rgba(124, 156, 255, 0.35);
+    }
 
-        .timer {
-            color: #667eea;
-            font-weight: bold;
-            font-size: 1.2em;
-        }
+    .sound-toggle.muted {
+      opacity: 0.6;
+    }
 
-        @media (max-width: 600px) {
-            .container {
-                padding: 20px;
-            }
-
-            .header h1 {
-                font-size: 1.8em;
-            }
-
-            .sudoku-cell {
-                font-size: 1em;
-            }
-
-            .controls {
-                grid-template-columns: repeat(2, 1fr);
-            }
-        }
-    </style>
+    @media (max-width: 640px) {
+      .app { padding: 18px 14px 14px; }
+      .controls { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .stats { grid-template-columns: repeat(2, minmax(120px, 1fr)); }
+      .number-pad { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+    }
+  </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>🎮 DOGUSO</h1>
-            <p>Sudoku Game - Trò chơi logic tư duy</p>
-        </div>
-
-        <div class="difficulty-selector">
-            <button class="difficulty-btn active" data-level="easy">Dễ</button>
-            <button class="difficulty-btn" data-level="medium">Trung bình</button>
-            <button class="difficulty-btn" data-level="hard">Khó</button>
-            <button class="difficulty-btn" data-level="expert">Expert</button>
-        </div>
-
-        <div class="stats">
-            <div class="stat-box">
-                <label>Thời gian</label>
-                <span class="timer" id="timer">00:00</span>
-            </div>
-            <div class="stat-box">
-                <label>Ô còn trống</label>
-                <span id="remaining">81</span>
-            </div>
-            <div class="stat-box">
-                <label>Lỗi</label>
-                <span id="errors">0</span>
-            </div>
-        </div>
-
-        <div class="sudoku-board">
-            <div class="sudoku-grid" id="sudokuGrid"></div>
-        </div>
-
-        <div class="number-pad" id="numberPad"></div>
-
-        <div class="controls">
-            <button class="btn btn-primary" id="newGameBtn">Trò chơi mới</button>
-            <button class="btn btn-secondary" id="hintBtn">Gợi ý</button>
-            <button class="btn btn-danger" id="clearBtn">Xóa</button>
-        </div>
+  <div class="app">
+    <div class="header">
+      <h1 class="logo">DOGUSO</h1>
+      <div class="subtitle">Sudoku Game • Logic Puzzle</div>
     </div>
 
-    <div class="modal" id="winModal">
-        <div class="modal-content">
-            <h2>🎉 Chúc mừng!</h2>
-            <p id="winMessage">Bạn đã hoàn thành trò chơi!</p>
-            <div class="modal-buttons">
-                <button class="btn btn-primary" id="playAgainBtn">Chơi lại</button>
-                <button class="btn btn-secondary" id="closeModalBtn">Đóng</button>
-            </div>
-        </div>
+    <div class="difficulty-bar">
+      <button class="difficulty-btn active" data-level="easy">Dễ</button>
+      <button class="difficulty-btn" data-level="medium">Trung bình</button>
+      <button class="difficulty-btn" data-level="hard">Khó</button>
+      <button class="difficulty-btn" data-level="expert">Expert</button>
     </div>
 
-    <script src="game.js"></script>
+    <div class="stats">
+      <div class="stat">
+        <span class="label">Thời gian</span>
+        <span class="value" id="timer">00:00</span>
+      </div>
+      <div class="stat">
+        <span class="label">Ô còn lại</span>
+        <span class="value" id="remaining">81</span>
+      </div>
+      <div class="stat">
+        <span class="label">Lỗi</span>
+        <span class="value" id="mistakes">0/5</span>
+      </div>
+    </div>
+
+    <div class="board-wrap">
+      <div class="sudoku-grid" id="sudokuGrid"></div>
+    </div>
+
+    <div class="number-pad" id="numberPad"></div>
+
+    <div class="controls">
+      <button class="action-btn primary" id="newGameBtn">Chơi mới</button>
+      <button class="action-btn secondary" id="hintBtn">Gợi ý <span id="hintCount">(3)</span></button>
+      <button class="action-btn danger" id="clearBtn">Xóa</button>
+    </div>
+
+    <div class="leaderboard">
+      <h3>Bảng xếp hạng</h3>
+      <div class="leaderboard-list" id="leaderboardList"></div>
+    </div>
+  </div>
+
+  <button class="sound-toggle" id="soundToggle" aria-label="Toggle sound">🔊</button>
+
+  <div class="modal" id="winModal">
+    <div class="modal-box">
+      <h2>🎉 Chúc mừng!</h2>
+      <p id="winMessage">Bạn đã hoàn thành Sudoku.</p>
+      <div class="modal-actions">
+        <button class="action-btn primary" id="playAgainBtn">Chơi lại</button>
+        <button class="action-btn secondary" id="closeWinBtn">Đóng</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="gameOverModal">
+    <div class="modal-box">
+      <h2>💥 Game over</h2>
+      <p id="gameOverMessage">Bạn đã dùng hết số lỗi cho phép.</p>
+      <div class="modal-actions">
+        <button class="action-btn primary" id="retryBtn">Thử lại</button>
+        <button class="action-btn secondary" id="closeGameOverBtn">Đóng</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="game.js"></script>
 </body>
 </html>

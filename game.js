@@ -1,336 +1,419 @@
 class SudokuGame {
-    constructor() {
-        this.board = [];
-        this.original = [];
-        this.solution = [];
-        this.selectedCell = null;
-        this.errors = 0;
-        this.startTime = null;
-        this.timerInterval = null;
-        this.difficulty = 'easy';
-        this.hints = 3;
-        
-        this.initEventListeners();
+  constructor() {
+    this.board = [];
+    this.solution = [];
+    this.puzzle = [];
+    this.selectedCell = null;
+    this.difficulty = 'easy';
+    this.hintsLeft = 3;
+    this.mistakes = 0;
+    this.maxMistakes = 5;
+    this.timerInterval = null;
+    this.startTime = 0;
+    this.soundEnabled = true;
+    this.leaderboard = this.loadLeaderboard();
+
+    this.bindEvents();
+    this.initNumberPad();
+    this.newGame();
+    this.renderLeaderboard();
+    this.updateSoundButton();
+  }
+
+  bindEvents() {
+    document.getElementById('newGameBtn').addEventListener('click', () => this.newGame());
+    document.getElementById('hintBtn').addEventListener('click', () => this.giveHint());
+    document.getElementById('clearBtn').addEventListener('click', () => this.clearSelected());
+    document.getElementById('playAgainBtn').addEventListener('click', () => this.newGame());
+    document.getElementById('retryBtn').addEventListener('click', () => this.newGame());
+    document.getElementById('closeWinBtn').addEventListener('click', () => this.hideModal('winModal'));
+    document.getElementById('closeGameOverBtn').addEventListener('click', () => this.hideModal('gameOverModal'));
+
+    document.querySelectorAll('.difficulty-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.difficulty-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        this.difficulty = btn.dataset.level;
         this.newGame();
+      });
+    });
+
+    document.getElementById('soundToggle').addEventListener('click', () => {
+      this.soundEnabled = !this.soundEnabled;
+      this.updateSoundButton();
+    });
+
+    document.addEventListener('keydown', (event) => {
+      if (event.key >= '1' && event.key <= '9') {
+        this.placeNumber(Number(event.key));
+      } else if (event.key === 'Backspace' || event.key === 'Delete' || event.key === '0') {
+        this.clearSelected();
+      }
+    });
+  }
+
+  initNumberPad() {
+    const pad = document.getElementById('numberPad');
+    pad.innerHTML = '';
+
+    for (let i = 1; i <= 9; i++) {
+      const btn = document.createElement('button');
+      btn.className = 'num-btn';
+      btn.textContent = i;
+      btn.addEventListener('click', () => this.placeNumber(i));
+      pad.appendChild(btn);
+    }
+  }
+
+  loadLeaderboard() {
+    const raw = localStorage.getItem('dogusoLeaderboard');
+    try {
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  }
+
+  saveLeaderboard() {
+    localStorage.setItem('dogusoLeaderboard', JSON.stringify(this.leaderboard));
+  }
+
+  renderLeaderboard() {
+    const list = document.getElementById('leaderboardList');
+    list.innerHTML = '';
+
+    const entries = this.leaderboard.slice(0, 5);
+    if (!entries.length) {
+      list.innerHTML = '<div class="leaderboard-item"><span>Chưa có dữ liệu</span><span>—</span></div>';
+      return;
     }
 
-    initEventListeners() {
-        document.getElementById('newGameBtn').addEventListener('click', () => this.newGame());
-        document.getElementById('hintBtn').addEventListener('click', () => this.giveHint());
-        document.getElementById('clearBtn').addEventListener('click', () => this.clearCell());
-        document.getElementById('playAgainBtn').addEventListener('click', () => this.newGame());
-        document.getElementById('closeModalBtn').addEventListener('click', () => this.closeModal());
+    entries.forEach((entry, index) => {
+      const row = document.createElement('div');
+      row.className = 'leaderboard-item';
+      row.innerHTML = `
+        <span><span class="medal">${['🥇', '🥈', '🥉'][index] || '🏅'}</span> #${index + 1}</span>
+        <strong>${this.formatTime(entry.time)}</strong>
+      `;
+      list.appendChild(row);
+    });
+  }
 
-        document.querySelectorAll('.difficulty-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                document.querySelectorAll('.difficulty-btn').forEach(b => b.classList.remove('active'));
-                e.target.classList.add('active');
-                this.difficulty = e.target.dataset.level;
-                this.newGame();
-            });
-        });
+  formatTime(seconds) {
+    const mins = String(Math.floor(seconds / 60)).padStart(2, '0');
+    const secs = String(seconds % 60).padStart(2, '0');
+    return `${mins}:${secs}`;
+  }
+
+  updateSoundButton() {
+    const btn = document.getElementById('soundToggle');
+    btn.textContent = this.soundEnabled ? '🔊' : '🔇';
+    btn.classList.toggle('muted', !this.soundEnabled);
+  }
+
+  beep(type = 'normal') {
+    if (!this.soundEnabled) return;
+
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) return;
+
+    const ctx = new AudioContextClass();
+    const oscillator = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    oscillator.connect(gain);
+    gain.connect(ctx.destination);
+
+    const frequencies = {
+      normal: 520,
+      success: 760,
+      error: 180,
+      win: 920,
+      hint: 600,
+    };
+
+    oscillator.type = 'sine';
+    oscillator.frequency.value = frequencies[type] || 520;
+    gain.gain.value = 0.04;
+
+    oscillator.start();
+    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.12);
+    oscillator.stop(ctx.currentTime + 0.12);
+  }
+
+  generateSolvedBoard() {
+    const base = Array.from({ length: 9 }, (_, row) =>
+      Array.from({ length: 9 }, (_, col) => ((row * 3 + Math.floor(row / 3) + col) % 9) + 1)
+    );
+
+    // Shuffle rows in groups of 3
+    const rowGroups = this.shuffle([0, 1, 2]).map(group => this.shuffle([group * 3, group * 3 + 1, group * 3 + 2])).flat();
+    const colGroups = this.shuffle([0, 1, 2]).map(group => this.shuffle([group * 3, group * 3 + 1, group * 3 + 2])).flat();
+    const digits = this.shuffle([1, 2, 3, 4, 5, 6, 7, 8, 9]);
+
+    const solved = Array.from({ length: 9 }, (_, r) =>
+      Array.from({ length: 9 }, (_, c) => {
+        const row = rowGroups[r];
+        const col = colGroups[c];
+        return digits[(base[row][col] - 1) % 9];
+      })
+    );
+
+    return solved;
+  }
+
+  shuffle(array) {
+    const copy = [...array];
+    for (let i = copy.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [copy[i], copy[j]] = [copy[j], copy[i]];
+    }
+    return copy;
+  }
+
+  makePuzzle() {
+    const solution = this.generateSolvedBoard();
+    const puzzle = solution.map(row => [...row]);
+
+    const cluesByDifficulty = {
+      easy: 46,
+      medium: 40,
+      hard: 34,
+      expert: 28,
+    };
+
+    const targetClues = cluesByDifficulty[this.difficulty] || 46;
+    const totalCells = 81;
+    let removeCount = totalCells - targetClues;
+    const positions = this.shuffle(Array.from({ length: 81 }, (_, i) => i));
+
+    for (const index of positions) {
+      if (removeCount <= 0) break;
+      const row = Math.floor(index / 9);
+      const col = index % 9;
+      puzzle[row][col] = 0;
+      removeCount--;
     }
 
-    generateBoard() {
-        this.solution = this.createEmptyBoard();
-        this.fillBoard(this.solution);
-        this.board = this.solution.map(row => [...row]);
-        this.original = this.solution.map(row => [...row]);
-        this.removeNumbers();
-    }
+    return { puzzle, solution };
+  }
 
-    createEmptyBoard() {
-        return Array(9).fill(null).map(() => Array(9).fill(0));
-    }
+  newGame() {
+    const { puzzle, solution } = this.makePuzzle();
+    this.puzzle = puzzle;
+    this.solution = solution;
+    this.board = puzzle.map(row => [...row]);
+    this.selectedCell = null;
+    this.hintsLeft = 3;
+    this.mistakes = 0;
+    this.startTime = Date.now();
+    this.clearTimer();
+    this.startTimer();
+    this.render();
+    this.updateStats();
+    this.hideModal('winModal');
+    this.hideModal('gameOverModal');
+    this.beep('normal');
+  }
 
-    fillBoard(board) {
-        for (let row = 0; row < 9; row++) {
-            for (let col = 0; col < 9; col++) {
-                if (board[row][col] === 0) {
-                    const numbers = this.shuffle([1, 2, 3, 4, 5, 6, 7, 8, 9]);
-                    for (let num of numbers) {
-                        if (this.isValid(board, row, col, num)) {
-                            board[row][col] = num;
-                            if (this.fillBoard(board)) return true;
-                            board[row][col] = 0;
-                        }
-                    }
-                    return false;
-                }
-            }
+  clearTimer() {
+    if (this.timerInterval) {
+      clearInterval(this.timerInterval);
+      this.timerInterval = null;
+    }
+  }
+
+  startTimer() {
+    this.timerInterval = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - this.startTime) / 1000);
+      const mins = String(Math.floor(elapsed / 60)).padStart(2, '0');
+      const secs = String(elapsed % 60).padStart(2, '0');
+      document.getElementById('timer').textContent = `${mins}:${secs}`;
+    }, 1000);
+  }
+
+  render() {
+    const grid = document.getElementById('sudokuGrid');
+    grid.innerHTML = '';
+
+    for (let row = 0; row < 9; row++) {
+      for (let col = 0; col < 9; col++) {
+        const cell = document.createElement('div');
+        const value = this.board[row][col];
+        cell.className = 'cell';
+        cell.dataset.row = String(row);
+        cell.dataset.col = String(col);
+
+        if (this.puzzle[row][col] !== 0) {
+          cell.classList.add('given');
         }
-        return true;
-    }
 
-    isValid(board, row, col, num) {
-        // Check row
-        for (let x = 0; x < 9; x++) {
-            if (board[row][x] === num) return false;
+        if (this.selectedCell && this.selectedCell.row === row && this.selectedCell.col === col) {
+          cell.classList.add('selected');
         }
 
-        // Check column
-        for (let x = 0; x < 9; x++) {
-            if (board[x][col] === num) return false;
+        if (value !== 0) {
+          cell.textContent = value;
         }
-
-        // Check 3x3 box
-        const boxRow = Math.floor(row / 3) * 3;
-        const boxCol = Math.floor(col / 3) * 3;
-        for (let i = boxRow; i < boxRow + 3; i++) {
-            for (let j = boxCol; j < boxCol + 3; j++) {
-                if (board[i][j] === num) return false;
-            }
-        }
-
-        return true;
-    }
-
-    removeNumbers() {
-        const difficulty = {
-            easy: 40,
-            medium: 50,
-            hard: 60,
-            expert: 70
-        };
-        
-        let cellsToRemove = difficulty[this.difficulty] || 40;
-        let removed = 0;
-
-        while (removed < cellsToRemove) {
-            const row = Math.floor(Math.random() * 9);
-            const col = Math.floor(Math.random() * 9);
-            
-            if (this.board[row][col] !== 0) {
-                const temp = this.board[row][col];
-                this.board[row][col] = 0;
-                removed++;
-            }
-        }
-    }
-
-    shuffle(array) {
-        for (let i = array.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [array[i], array[j]] = [array[j], array[i]];
-        }
-        return array;
-    }
-
-    newGame() {
-        this.errors = 0;
-        this.selectedCell = null;
-        this.hints = 3;
-        clearInterval(this.timerInterval);
-        this.startTime = Date.now();
-        this.generateBoard();
-        this.render();
-        this.startTimer();
-        this.closeModal();
-        document.getElementById('errors').textContent = '0';
-    }
-
-    render() {
-        const grid = document.getElementById('sudokuGrid');
-        grid.innerHTML = '';
-        
-        for (let row = 0; row < 9; row++) {
-            for (let col = 0; col < 9; col++) {
-                const cell = document.createElement('div');
-                cell.className = 'sudoku-cell';
-                cell.dataset.row = row;
-                cell.dataset.col = col;
-                
-                if (this.original[row][col] !== 0) {
-                    cell.classList.add('given');
-                    cell.textContent = this.original[row][col];
-                } else if (this.board[row][col] !== 0) {
-                    cell.textContent = this.board[row][col];
-                }
-                
-                cell.addEventListener('click', () => this.selectCell(row, col, cell));
-                grid.appendChild(cell);
-            }
-        }
-        
-        this.updateRemaining();
-    }
-
-    selectCell(row, col, cellElement) {
-        if (this.original[row][col] !== 0) return; // Can't select given cells
 
         if (this.selectedCell) {
-            this.selectedCell.classList.remove('selected', 'related');
+          const sameRow = row === this.selectedCell.row;
+          const sameCol = col === this.selectedCell.col;
+          const sameBox = (Math.floor(row / 3) === Math.floor(this.selectedCell.row / 3) && Math.floor(col / 3) === Math.floor(this.selectedCell.col / 3));
+          if ((sameRow || sameCol || sameBox) && !(sameRow && sameCol)) {
+            cell.classList.add('related');
+          }
         }
 
-        cellElement.classList.add('selected');
-        this.selectedCell = cellElement;
-        this.highlightRelated(row, col);
-    }
-
-    highlightRelated(row, col) {
-        const cells = document.querySelectorAll('.sudoku-cell');
-        cells.forEach(cell => {
-            const r = parseInt(cell.dataset.row);
-            const c = parseInt(cell.dataset.col);
-            
-            if ((r === row || c === col || 
-                (Math.floor(r / 3) === Math.floor(row / 3) && Math.floor(c / 3) === Math.floor(col / 3))) &&
-                !(r === row && c === col)) {
-                cell.classList.add('related');
-            }
-        });
-    }
-
-    placeNumber(num) {
-        if (!this.selectedCell) return;
-        
-        const row = parseInt(this.selectedCell.dataset.row);
-        const col = parseInt(this.selectedCell.dataset.col);
-        
-        if (this.original[row][col] !== 0) return;
-        
-        this.board[row][col] = num;
-        this.selectedCell.textContent = num;
-        
-        if (num !== this.solution[row][col]) {
-            this.selectedCell.classList.add('error');
-            this.errors++;
-            document.getElementById('errors').textContent = this.errors;
-            
-            setTimeout(() => {
-                this.selectedCell.classList.remove('error');
-                this.board[row][col] = 0;
-                this.selectedCell.textContent = '';
-            }, 500);
-        } else {
-            this.selectedCell.classList.remove('error');
-            this.updateRemaining();
-            this.checkWin();
+        if (this.puzzle[row][col] === 0 && value !== 0 && value === this.solution[row][col]) {
+          cell.classList.add('correct');
         }
+
+        if (value !== 0 && value !== this.solution[row][col] && this.puzzle[row][col] === 0) {
+          cell.classList.add('error');
+        }
+
+        cell.addEventListener('click', () => this.selectCell(row, col));
+        grid.appendChild(cell);
+      }
     }
 
-    clearCell() {
-        if (!this.selectedCell) return;
-        
-        const row = parseInt(this.selectedCell.dataset.row);
-        const col = parseInt(this.selectedCell.dataset.col);
-        
-        if (this.original[row][col] === 0) {
-            this.board[row][col] = 0;
-            this.selectedCell.textContent = '';
-            this.selectedCell.classList.remove('error');
-            this.updateRemaining();
-        }
+    this.updateStats();
+  }
+
+  selectCell(row, col) {
+    if (this.puzzle[row][col] !== 0) {
+      return;
     }
 
-    giveHint() {
-        if (this.hints <= 0) {
-            alert('Bạn đã hết gợi ý!');
-            return;
-        }
-        
-        let found = false;
-        for (let row = 0; row < 9; row++) {
-            for (let col = 0; col < 9; col++) {
-                if (this.board[row][col] === 0 && this.original[row][col] === 0) {
-                    this.board[row][col] = this.solution[row][col];
-                    found = true;
-                    this.hints--;
-                    break;
-                }
-            }
-            if (found) break;
-        }
-        
-        if (found) {
-            this.render();
-            this.updateRemaining();
-            this.checkWin();
-        }
+    this.selectedCell = { row, col };
+    this.render();
+  }
+
+  clearSelected() {
+    if (!this.selectedCell) return;
+
+    const { row, col } = this.selectedCell;
+    if (this.puzzle[row][col] !== 0) return;
+
+    this.board[row][col] = 0;
+    this.render();
+    this.beep('hint');
+  }
+
+  placeNumber(value) {
+    if (!this.selectedCell) return;
+
+    const { row, col } = this.selectedCell;
+    if (this.puzzle[row][col] !== 0) return;
+
+    const current = this.board[row][col];
+    const correct = this.solution[row][col] === value;
+
+    if (current === value) {
+      this.board[row][col] = 0;
+      this.render();
+      return;
     }
 
-    updateRemaining() {
-        let remaining = 0;
-        for (let row = 0; row < 9; row++) {
-            for (let col = 0; col < 9; col++) {
-                if (this.board[row][col] === 0) remaining++;
-            }
+    if (correct) {
+      this.board[row][col] = value;
+      this.beep('success');
+      this.render();
+      this.checkWin();
+      return;
+    }
+
+    this.board[row][col] = value;
+    this.mistakes += 1;
+    this.beep('error');
+    this.render();
+
+    if (this.mistakes >= this.maxMistakes) {
+      this.showGameOver();
+      return;
+    }
+
+    this.updateStats();
+    setTimeout(() => {
+      if (this.board[row][col] === value) {
+        this.board[row][col] = 0;
+        this.render();
+      }
+    }, 420);
+  }
+
+  giveHint() {
+    if (this.hintsLeft <= 0) {
+      return;
+    }
+
+    for (let row = 0; row < 9; row++) {
+      for (let col = 0; col < 9; col++) {
+        if (this.puzzle[row][col] === 0 && this.board[row][col] !== this.solution[row][col]) {
+          this.board[row][col] = this.solution[row][col];
+          this.hintsLeft -= 1;
+          this.render();
+          this.updateStats();
+          this.beep('hint');
+          this.checkWin();
+          return;
         }
-        document.getElementById('remaining').textContent = remaining;
+      }
     }
+  }
 
-    checkWin() {
-        let complete = true;
-        for (let row = 0; row < 9; row++) {
-            for (let col = 0; col < 9; col++) {
-                if (this.board[row][col] === 0 || this.board[row][col] !== this.solution[row][col]) {
-                    complete = false;
-                    break;
-                }
-            }
-            if (!complete) break;
-        }
-        
-        if (complete) {
-            clearInterval(this.timerInterval);
-            const time = document.getElementById('timer').textContent;
-            const message = `Chúc mừng! Bạn hoàn thành trong ${time}!`;
-            document.getElementById('winMessage').textContent = message;
-            this.showModal();
-        }
-    }
+  updateStats() {
+    const remaining = this.board.flat().filter(v => v === 0).length;
+    document.getElementById('remaining').textContent = String(remaining);
+    document.getElementById('mistakes').textContent = `${this.mistakes}/${this.maxMistakes}`;
+    document.getElementById('hintCount').textContent = `(${this.hintsLeft})`;
+  }
 
-    startTimer() {
-        this.timerInterval = setInterval(() => {
-            const elapsed = Math.floor((Date.now() - this.startTime) / 1000);
-            const minutes = Math.floor(elapsed / 60);
-            const seconds = elapsed % 60;
-            document.getElementById('timer').textContent = 
-                String(minutes).padStart(2, '0') + ':' + String(seconds).padStart(2, '0');
-        }, 1000);
-    }
+  checkWin() {
+    const solved = this.board.every((row, r) => row.every((cell, c) => cell === this.solution[r][c]));
+    if (!solved) return;
 
-    showModal() {
-        document.getElementById('winModal').classList.add('show');
-    }
+    this.clearTimer();
+    const elapsed = Math.floor((Date.now() - this.startTime) / 1000);
+    this.beep('win');
 
-    closeModal() {
-        document.getElementById('winModal').classList.remove('show');
-    }
+    this.leaderboard.push({ time: elapsed });
+    this.leaderboard.sort((a, b) => a.time - b.time);
+    this.leaderboard = this.leaderboard.slice(0, 5);
+    this.saveLeaderboard();
+    this.renderLeaderboard();
+
+    const winText = `Bạn đã hoàn thành trong ${this.formatTime(elapsed)}.`;
+    document.getElementById('winMessage').textContent = winText;
+    this.showModal('winModal');
+  }
+
+  showGameOver() {
+    this.clearTimer();
+    document.getElementById('gameOverMessage').textContent = `Bạn đã dùng quá ${this.maxMistakes} lỗi. Hãy thử lại!`;
+    this.showModal('gameOverModal');
+  }
+
+  showModal(id) {
+    const modal = document.getElementById(id);
+    if (modal) modal.classList.add('show');
+  }
+
+  hideModal(id) {
+    const modal = document.getElementById(id);
+    if (modal) modal.classList.remove('show');
+  }
 }
 
-// Initialize number pad
-function initNumberPad() {
-    const numberPad = document.getElementById('numberPad');
-    numberPad.innerHTML = '';
-    
-    for (let i = 1; i <= 9; i++) {
-        const btn = document.createElement('button');
-        btn.className = 'num-btn';
-        btn.textContent = i;
-        btn.addEventListener('click', () => game.placeNumber(i));
-        numberPad.appendChild(btn);
-    }
-    
-    const clearBtn = document.createElement('button');
-    clearBtn.className = 'num-btn';
-    clearBtn.textContent = 'C';
-    clearBtn.style.gridColumn = 'span 1';
-    clearBtn.addEventListener('click', () => game.clearCell());
-    numberPad.appendChild(clearBtn);
-}
-
-let game;
 document.addEventListener('DOMContentLoaded', () => {
-    initNumberPad();
-    game = new SudokuGame();
-    
-    // Keyboard support
-    document.addEventListener('keydown', (e) => {
-        if (e.key >= '1' && e.key <= '9') {
-            game.placeNumber(parseInt(e.key));
-        } else if (e.key === 'Backspace' || e.key === 'Delete') {
-            game.clearCell();
-        }
-    });
+  window.game = new SudokuGame();
 });
+
+if (typeof window !== 'undefined') {
+  window.formatTime = function (seconds) {
+    const mins = String(Math.floor(seconds / 60)).padStart(2, '0');
+    const secs = String(seconds % 60).padStart(2, '0');
+    return `${mins}:${secs}`;
+  };
+}
