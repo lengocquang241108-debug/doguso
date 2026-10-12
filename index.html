@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Doguso - Sudoku Game</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 30px;
+            max-width: 600px;
+            width: 100%;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            color: #667eea;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .header p {
+            color: #666;
+            font-size: 1em;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        .stat-box {
+            background: #f0f4ff;
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+            border-left: 4px solid #667eea;
+        }
+
+        .stat-box label {
+            display: block;
+            color: #999;
+            font-size: 0.9em;
+            margin-bottom: 5px;
+        }
+
+        .stat-box span {
+            display: block;
+            color: #667eea;
+            font-size: 1.5em;
+            font-weight: bold;
+        }
+
+        .sudoku-board {
+            background: #333;
+            padding: 10px;
+            border-radius: 10px;
+            margin-bottom: 25px;
+            display: inline-block;
+            width: 100%;
+        }
+
+        .sudoku-grid {
+            display: grid;
+            grid-template-columns: repeat(9, 1fr);
+            gap: 0;
+            background: #333;
+            border: 3px solid #333;
+        }
+
+        .sudoku-cell {
+            width: 100%;
+            aspect-ratio: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: white;
+            border: 1px solid #ccc;
+            font-size: 1.2em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .sudoku-cell:hover {
+            background: #f9f9f9;
+        }
+
+        .sudoku-cell.selected {
+            background: #667eea;
+            color: white;
+        }
+
+        .sudoku-cell.given {
+            background: #f0f0f0;
+            color: #000;
+            font-weight: 900;
+        }
+
+        .sudoku-cell.error {
+            background: #ffebee;
+            color: #c62828;
+        }
+
+        .sudoku-cell.related {
+            background: #e8eaf6;
+        }
+
+        /* Thicker borders for 3x3 boxes */
+        .sudoku-cell:nth-child(3n) {
+            border-right: 3px solid #333;
+        }
+
+        .sudoku-cell:nth-child(n + 25):nth-child(-n + 27),
+        .sudoku-cell:nth-child(n + 52):nth-child(-n + 54) {
+            border-bottom: 3px solid #333;
+        }
+
+        .sudoku-cell:nth-child(27n + 19),
+        .sudoku-cell:nth-child(27n + 20),
+        .sudoku-cell:nth-child(27n + 21) {
+            border-bottom: 3px solid #333;
+        }
+
+        .sudoku-cell:nth-child(n + 19):nth-child(-n + 21),
+        .sudoku-cell:nth-child(n + 46):nth-child(-n + 48) {
+            border-bottom: 3px solid #333;
+        }
+
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .btn {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+            grid-column: span 1;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #333;
+            grid-column: span 1;
+        }
+
+        .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+
+        .btn-danger {
+            background: #ff6b6b;
+            color: white;
+            grid-column: span 1;
+        }
+
+        .btn-danger:hover {
+            background: #ee5a52;
+        }
+
+        .number-pad {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+
+        .num-btn {
+            padding: 12px;
+            border: 2px solid #667eea;
+            background: white;
+            color: #667eea;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 1.1em;
+        }
+
+        .num-btn:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        .num-btn.active {
+            background: #667eea;
+            color: white;
+        }
+
+        .difficulty-selector {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            justify-content: center;
+        }
+
+        .difficulty-btn {
+            padding: 8px 16px;
+            border: 2px solid #ddd;
+            background: white;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: bold;
+        }
+
+        .difficulty-btn.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            text-align: center;
+            max-width: 400px;
+        }
+
+        .modal-content h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 2em;
+        }
+
+        .modal-content p {
+            color: #666;
+            margin-bottom: 25px;
+            font-size: 1.1em;
+        }
+
+        .modal-buttons {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+
+        .modal-buttons .btn {
+            padding: 12px;
+        }
+
+        .timer {
+            color: #667eea;
+            font-weight: bold;
+            font-size: 1.2em;
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                padding: 20px;
+            }
+
+            .header h1 {
+                font-size: 1.8em;
+            }
+
+            .sudoku-cell {
+                font-size: 1em;
+            }
+
+            .controls {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎮 DOGUSO</h1>
+            <p>Sudoku Game - Trò chơi logic tư duy</p>
+        </div>
+
+        <div class="difficulty-selector">
+            <button class="difficulty-btn active" data-level="easy">Dễ</button>
+            <button class="difficulty-btn" data-level="medium">Trung bình</button>
+            <button class="difficulty-btn" data-level="hard">Khó</button>
+            <button class="difficulty-btn" data-level="expert">Expert</button>
+        </div>
+
+        <div class="stats">
+            <div class="stat-box">
+                <label>Thời gian</label>
+                <span class="timer" id="timer">00:00</span>
+            </div>
+            <div class="stat-box">
+                <label>Ô còn trống</label>
+                <span id="remaining">81</span>
+            </div>
+            <div class="stat-box">
+                <label>Lỗi</label>
+                <span id="errors">0</span>
+            </div>
+        </div>
+
+        <div class="sudoku-board">
+            <div class="sudoku-grid" id="sudokuGrid"></div>
+        </div>
+
+        <div class="number-pad" id="numberPad"></div>
+
+        <div class="controls">
+            <button class="btn btn-primary" id="newGameBtn">Trò chơi mới</button>
+            <button class="btn btn-secondary" id="hintBtn">Gợi ý</button>
+            <button class="btn btn-danger" id="clearBtn">Xóa</button>
+        </div>
+    </div>
+
+    <div class="modal" id="winModal">
+        <div class="modal-content">
+            <h2>🎉 Chúc mừng!</h2>
+            <p id="winMessage">Bạn đã hoàn thành trò chơi!</p>
+            <div class="modal-buttons">
+                <button class="btn btn-primary" id="playAgainBtn">Chơi lại</button>
+                <button class="btn btn-secondary" id="closeModalBtn">Đóng</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="game.js"></script>
+</body>
+</html>
